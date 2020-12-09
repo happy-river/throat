@@ -918,7 +918,6 @@ def create_sendmsg():
                             to=user.uid,
                             subject=form.subject.data,
                             content=form.content.data,
-                            link=None,
                             mtype=1 if current_user.uid not in misc.get_ignores(user.uid) else 41)
         socketio.emit('notification',
                       {'count': misc.get_notification_count(user.uid)},
@@ -1969,9 +1968,6 @@ def delete_comment():
             comment.status = 1
 
         comment.save()
-
-        q = Message.delete().where(Message.mlink == form.cid.data)
-        q.execute()
         return jsonify(status='ok')
     return json.dumps({'status': 'error', 'error': get_errors(form)})
 

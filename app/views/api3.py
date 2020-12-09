@@ -636,8 +636,6 @@ def delete_comment(sub, pid, cid):
     comment.status = 1
     comment.save()
 
-    q = Message.delete().where(Message.mlink == cid)
-    q.execute()
     return jsonify(), 200
 
 

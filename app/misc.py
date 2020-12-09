@@ -962,22 +962,8 @@ def getMessagesIndex(page):
     """ Returns messages inbox """
     try:
         msg = Message.select(Message.mid, User.name.alias('username'), Message.sentby, Message.receivedby,
-                             Message.subject, Message.content, Message.posted, Message.read, Message.mtype,
-                             Message.mlink)
+                             Message.subject, Message.content, Message.posted, Message.read, Message.mtype)
         msg = msg.join(User, JOIN.LEFT_OUTER, on=(User.uid == Message.sentby)).where(Message.mtype == 1).where(
-            Message.receivedby == current_user.uid).order_by(Message.mid.desc()).paginate(page, 20).dicts()
-    except Message.DoesNotExist:
-        return False
-    return msg
-
-
-def getMentionsIndex(page):
-    """ Returns user mentions inbox """
-    try:
-        msg = Message.select(Message.mid, User.name.alias('username'), Message.sentby, Message.receivedby,
-                             Message.subject, Message.content, Message.posted, Message.read, Message.mtype,
-                             Message.mlink)
-        msg = msg.join(User, JOIN.LEFT_OUTER, on=(User.uid == Message.sentby)).where(Message.mtype == 8).where(
             Message.receivedby == current_user.uid).order_by(Message.mid.desc()).paginate(page, 20).dicts()
     except Message.DoesNotExist:
         return False
@@ -988,21 +974,9 @@ def getMessagesSent(page):
     """ Returns messages sent """
     try:
         msg = Message.select(Message.mid, Message.sentby, User.name.alias('username'), Message.subject, Message.content,
-                             Message.posted, Message.read, Message.mtype, Message.mlink)
+                             Message.posted, Message.read, Message.mtype)
         msg = msg.join(User, JOIN.LEFT_OUTER, on=(User.uid == Message.receivedby)).where(Message.mtype << [1, 6, 9, 41]).where(
             Message.sentby == current_user.uid).order_by(Message.mid.desc()).paginate(page, 20).dicts()
-    except Message.DoesNotExist:
-        return False
-    return msg
-
-
-def getMessagesModmail(page):
-    """ Returns modmail """
-    try:
-        msg = Message.select(Message.mid, User.name.alias('username'), Message.receivedby, Message.subject,
-                             Message.content, Message.posted, Message.read, Message.mtype, Message.mlink)
-        msg = msg.join(User, on=(User.uid == Message.sentby)).where(Message.mtype << [2, 7, 11]).where(
-            Message.receivedby == current_user.uid).order_by(Message.mid.desc()).paginate(page, 20).dicts()
     except Message.DoesNotExist:
         return False
     return msg
@@ -1012,44 +986,8 @@ def getMessagesSaved(page):
     """ Returns saved messages """
     try:
         msg = Message.select(Message.mid, User.name.alias('username'), Message.receivedby, Message.subject,
-                             Message.content, Message.posted, Message.read, Message.mtype, Message.mlink)
+                             Message.content, Message.posted, Message.read, Message.mtype)
         msg = msg.join(User, on=(User.uid == Message.sentby)).where(Message.mtype == 9).where(
-            Message.receivedby == current_user.uid).order_by(Message.mid.desc()).paginate(page, 20).dicts()
-    except Message.DoesNotExist:
-        return False
-    return msg
-
-
-def getMsgCommReplies(page):
-    """ Returns comment replies messages """
-    try:
-        msg = Message.select(Message.mid, User.name.alias('username'), Message.sentby, Message.receivedby,
-                             Message.subject,
-                             Message.posted, Message.read, Message.mtype, Message.mlink, SubPostComment.pid,
-                             SubPostComment.content,
-                             SubPostComment.score, SubPostCommentVote.positive, Sub.name.alias('sub'))
-        msg = msg.join(SubPostComment, on=SubPostComment.cid == Message.mlink).join(SubPost).join(Sub).switch(
-            SubPostComment).join(SubPostCommentVote, JOIN.LEFT_OUTER, on=(
-                (SubPostCommentVote.uid == current_user.uid) & (SubPostCommentVote.cid == Message.mlink)))
-        msg = msg.join(User, on=(User.uid == Message.sentby)).where(Message.mtype == 5).where(
-            Message.receivedby == current_user.uid).order_by(Message.mid.desc()).paginate(page, 20).dicts()
-    except Message.DoesNotExist:
-        return False
-    return msg
-
-
-def getMsgPostReplies(page):
-    """ Returns post replies messages """
-    try:
-        msg = Message.select(Message.mid, User.name.alias('username'), Message.sentby, Message.receivedby,
-                             Message.subject,
-                             Message.posted, Message.read, Message.mtype, Message.mlink, SubPostCommentVote.positive,
-                             SubPostComment.pid,
-                             SubPostComment.score, SubPostComment.content, Sub.name.alias('sub'))
-        msg = msg.join(SubPostComment, on=SubPostComment.cid == Message.mlink).join(SubPost).join(Sub).switch(
-            SubPostComment).join(SubPostCommentVote, JOIN.LEFT_OUTER, on=(
-                (SubPostCommentVote.uid == current_user.uid) & (SubPostCommentVote.cid == Message.mlink)))
-        msg = msg.join(User, on=(User.uid == Message.sentby)).where(Message.mtype == 4).where(
             Message.receivedby == current_user.uid).order_by(Message.mid.desc()).paginate(page, 20).dicts()
     except Message.DoesNotExist:
         return False
@@ -1252,10 +1190,10 @@ def pick_random_security_question():
     return sc[1]
 
 
-def create_message(mfrom, to, subject, content, link, mtype):
+def create_message(mfrom, to, subject, content, mtype):
     """ Creates a message. """
     posted = datetime.utcnow()
-    return Message.create(sentby=mfrom, receivedby=to, subject=subject, mlink=link, content=content, posted=posted,
+    return Message.create(sentby=mfrom, receivedby=to, subject=subject, content=content, posted=posted,
                           mtype=mtype)
 
 
