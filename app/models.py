@@ -775,24 +775,83 @@ class Notification(BaseModel):
         return f'<Notification target="{self.user}" type="{self.type}" >'
 
 
+class MessageType(IntEnum):
+    """Types of private messages.
+    Value of the 'mtype' field in Message."""
+    USER_TO_USER = 100
+    USER_TO_MODS = 101
+    MOD_TO_USER_AS_USER = 102
+    MOD_TO_USER_AS_MOD = 103
+    MOD_DISCUSSION = 104
+    USER_BAN_APPEAL = 105
+    MOD_NOTIFICATION = 106
+
+
+# The types of messages that should show up in a user's inbox.
+USER_INBOX_MESSAGE_TYPES = [MessageType.USER_TO_USER,
+                            MessageType.MOD_TO_USER_AS_USER,
+                            MessageType.MOD_TO_USER_AS_MOD]
+
+# The types of messages that should appear in user's sent mail.
+USER_SENT_MESSAGE_TYPES = [MessageType.USER_TO_USER,
+                           MessageType.USER_TO_MODS,
+                           MessageType.USER_BAN_APPEAL]
+
+# The types of messages that UserIgnores can't block.
+NON_IGNORABLE_MESSAGE_TYPES = [MessageType.MOD_TO_USER_AS_USER,
+                               MessageType.MOD_TO_USER_AS_MOD]
+
+
+class MessageStatus(IntEnum):
+    """Statuses of private messages.
+    Value of the 'sender_status' and 'receiver_status' fields in Message."""
+    DEFAULT = 200  # Inbox for received messages and modmail and Sent for sent messages.
+    SAVED = 201  # Called "Archived" in Modmail.
+    TRASHED = 202  # User to user only.
+    DELETED = 203  # User to user only.
+
+
+# Messages to show in Inbox and Sent.
+ACTIVE_MESSAGE_STATUSES = [MessageStatus.DEFAULT, MessageStatus.SAVED]
+INACTIVE_MESSAGE_STATUSES = [MessageStatus.TRASHED, MessageStatus.DELETED]
+
+
 class Message(BaseModel):
     mid = PrimaryKeyField()
     content = TextField(null=True)
-    mlink = CharField(null=True) # Unused
-    # mtype values:
-    # 1: sent, 9: saved message
-    # 6: deleted, 41: ignored messages  => won't display anywhere
     mtype = IntegerField(null=True)
     posted = DateTimeField(null=True)
-    read = DateTimeField(null=True)
+
+    # Relevant for messages to individual users, otherwise NULL.
     receivedby = ForeignKeyField(db_column='receivedby', null=True,
                                  model=User, field='uid')
+
+    # The user who created the message, even for modmails.
     sentby = ForeignKeyField(db_column='sentby', null=True, model=User,
                              backref='user_sentby_set', field='uid')
+    reply_to = ForeignKeyField(db_column='reply_to', null=True,
+                              model='self', field='mid')
+    replies = IntegerField(default=0)
     subject = CharField(null=True)
 
+    # Relevant for modmail messages, otherwise NULL.
+    sub = ForeignKeyField(db_column='sid', null=True, model=Sub, field='sid')
+
+    sender_status = IntegerField(default=MessageStatus.DEFAULT)
+    receiver_status = IntegerField(default=MessageStatus.DEFAULT)
+
     def __repr__(self):
-        return f'<Message "{self.subject[:20]}"'
+        return f'<Message "{self.mid}"'
 
     class Meta:
         table_name = 'message'
+
+class UserUnreadMessage(BaseModel):
+    uid = ForeignKeyField(db_column='uid', model=User, field='uid')
+    mid = ForeignKeyField(db_column='mid', model=Message, field='mid')
+
+    def __repr__(self):
+        return f'<UserUnreadMessage "{self.uid}/{self.mid}"'
+
+    class Meta:
+        table_name = 'user_unread_message'
