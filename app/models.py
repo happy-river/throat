@@ -754,24 +754,54 @@ class Notification(BaseModel):
         return f'<Notification target="{self.user}" type="{self.type}" >'
 
 
+class MessageType(IntEnum):
+    """Types of private messages.
+    Value of the 'mtype' field in Message"""
+    USER_TO_USER = 100
+    USER_TO_MOD = 101
+    MOD_TO_USER_AS_USER = 102
+    MOD_TO_USER_AS_MOD = 103
+    MOD_DISCUSSION = 104
+    USER_BAN_APPEAL = 105
+    MOD_NOTIFICATION = 106 # Autogenerate these from sublog?
+
+class MessageStatus(IntEnum):
+    """Statuses of private messages.
+    Value of the 'sender_status' and 'receiver_status' field in Message."""
+    DEFAULT = 200  # Inbox for received messages and modmail and Sent for sent messages.
+    SAVED = 201  # Called "Archived" in Modmail.
+    HIGHLIGHTED = 202  # Modmail only.
+    TRASHED = 203  # User to user only.
+    DELETED = 204  # User to user only.
+
 class Message(BaseModel):
     mid = PrimaryKeyField()
     content = TextField(null=True)
-    mlink = CharField(null=True) # Unused
-    # mtype values:
-    # 1: sent, 9: saved message
-    # 6: deleted, 41: ignored messages  => won't display anywhere
     mtype = IntegerField(null=True)
     posted = DateTimeField(null=True)
-    read = DateTimeField(null=True)
     receivedby = ForeignKeyField(db_column='receivedby', null=True,
                                  model=User, field='uid')
     sentby = ForeignKeyField(db_column='sentby', null=True, model=User,
                              backref='user_sentby_set', field='uid')
+    replyto = ForeignKeyField(db_column='replyto', null=True,
+                              model='self', field='mid')
     subject = CharField(null=True)
+
+    # Relevant for modmail messages.
+    sub = ForeignKeyField(db_column='sid', null=True, model=Sub, field='sid')
 
     def __repr__(self):
         return f'<Message "{self.subject[:20]}"'
 
     class Meta:
         table_name = 'message'
+
+class UserUnreadMessage(BaseModel):
+    uid = ForeignKeyField(db_column='uid', model=User, field='uid')
+    mid = ForeignKeyField(db_column='mid', model=Message, field='mid')
+
+    def __repr__(self):
+        return f'<UserUnreadMessage "{self.uid}/{self.mid}"'
+
+    class Meta:
+        table_name = 'user_unread_message'
