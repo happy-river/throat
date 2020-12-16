@@ -79,7 +79,8 @@ u.sub('.pmessage .replymsg', 'click', function(e){
   document.querySelector('#msg-form #subject').setAttribute('value', 'Re:' + title);
   var modal = document.getElementById('msgpop');
   document.querySelector('#replyto'+mid).appendChild(document.getElementById('msgpop'));
-  modal.style.display = "block";
+    modal.style.display = "block";
+    console.log("popped modal")
 });
 
 u.sub('.pmessage .formpopmsg', 'click', function(e){

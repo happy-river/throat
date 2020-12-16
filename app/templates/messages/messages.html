@@ -29,13 +29,9 @@
               <a href="#" class="btn small">Phuks</a>
               {%endif%}
               {% if message.read %}
-                <a class="read">read <time-ago datetime="{{message.read.isoformat()}}Z"></time-ago></a>
+                <a class="read">read</a>
               {% else %}
-                {% if message.mtype == 8 %}
-                  <a class="" data-mid="{{message.mid}}">new</a>
-                {%else%}
-                  <a class="readmsg" data-mid="{{message.mid}}">mark as read</a>
-                {%endif%}
+                <a class="readmsg" data-mid="{{message.mid}}">mark as read</a>
               {% endif %}
               {% if message.username %}
               <a href="#msg-form" data-mid="{{message.mid}}" data-replyto='{{message.username}}' data-replytitle='{{message.subject}}' class="replymsg">reply</a>
