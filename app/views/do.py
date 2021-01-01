@@ -33,7 +33,7 @@ from ..models import SubPost, SubPostComment, Sub, Message, User, UserIgnores, S
 from ..models import SubMod, SubBan, SubPostCommentHistory, InviteCode, Notification, SubPostContentHistory, SubPostTitleHistory
 from ..models import SubStylesheet, SubSubscriber, SubUploads, UserUploads, SiteMetadata, SubPostMetadata, SubPostReport
 from ..models import SubPostVote, SubPostCommentVote, SubFlair, SubPostPollOption, SubPostPollVote, SubPostCommentReport, SubRule
-from ..models import rconn, UserStatus
+from ..models import rconn, UserStatus, MessageType, MessageStatus, UserUnreadMessage
 from ..tasks import create_thumbnail
 from ..notifications import notifications
 from peewee import fn, JOIN
@@ -918,7 +918,7 @@ def create_sendmsg():
                             to=user.uid,
                             subject=form.subject.data,
                             content=form.content.data,
-                            mtype=1 if current_user.uid not in misc.get_ignores(user.uid) else 41)
+                            mtype=MessageType.USER_TO_USER)
         socketio.emit('notification',
                       {'count': misc.get_notification_count(user.uid)},
                       namespace='/snt',
@@ -1252,27 +1252,27 @@ def read_pm(mid):
     except Message.DoesNotExist:
         return jsonify(status='error', error=[_('Message not found')])
 
-    if current_user.uid == message.receivedby_id:
-        if message.read is not None:
-            return jsonify(status='ok')
-        message.read = datetime.datetime.utcnow()
-        message.save()
-        socketio.emit('notification',
-                      {'count': current_user.notifications},
-                      namespace='/snt',
-                      room='user' + current_user.uid)
-        return jsonify(status='ok', mid=mid)
-    else:
-        return jsonify(status='error')
+    try:
+        um = UserUnreadMessage.get((UserUnreadMessage.uid == current_user.uid) &
+                                   (UserUnreadMessage.mid == mid))
+    except UserUnreadMessage.DoesNotExist:
+        return jsonify(status='ok')
+
+    um.delete_instance()
+    socketio.emit('notification',
+                  {'count': current_user.notifications},
+                  namespace='/snt',
+                  room='user' + current_user.uid)
+    return jsonify(status='ok', mid=mid)
 
 
 @do.route("/do/readall_msgs/<boxid>", methods=['POST'])
 @login_required
 def readall_msgs(boxid):
-    """ Mark all messages in a box as read """
-    now = datetime.datetime.utcnow()
-    q = Message.update(read=now).where(Message.read.is_null()).where(Message.receivedby == current_user.uid)
-    q.where(Message.mtype == boxid).execute()
+    """ Mark all messages in the inbox as read """
+    unreads = misc.select_unread_messages(current_user.uid, UserUnreadMessage.id)
+    UserUnreadMessage.delete(). where(UserUnreadMessage.id << [u.id for u in unreads]).execute()
+
     socketio.emit('notification',
                   {'count': current_user.notifications},
                   namespace='/snt',
@@ -1289,8 +1289,14 @@ def delete_pm(mid):
         if message.receivedby_id != current_user.uid:
             return jsonify(status='error', error=_("Message does not exist"))
 
-        message.mtype = 6
-        message.save()
+        UserUnreadMessage.delete().where((UserUnreadMessage.uid == current_user.uid) &
+                                         (UserUnreadMessage.mid == message.mid)).execute()
+
+        message.receiver_status = MessageStatus.DELETED
+        if message.sender_status == MessageStatus.DELETED:
+            message.delete_instance()
+        else:
+            message.save()
         return jsonify(status='ok')
     except Message.DoesNotExist:
         return jsonify(status='error', error=_("Message does not exist"))
@@ -1343,7 +1349,7 @@ def save_pm(mid):
         if message.receivedby_id != current_user.uid:
             return jsonify(status='error', error=_("Message does not exist"))
 
-        message.mtype = 9
+        message.receiver_status = MessageStatus.SAVED
         message.save()
         return jsonify(status='ok')
     except Message.DoesNotExist:

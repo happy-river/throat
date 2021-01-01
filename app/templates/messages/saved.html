@@ -24,7 +24,7 @@
             <p class="container">
               <a href="{{url_for('user.view', user=message.username)}}" class="btn small">/u/{{message.username}}</a>
               {% if message.read %}
-                <a class="read">read <time-ago datetime="{{message.read.isoformat()}}Z"></time-ago></a>
+                <a class="read">read</a>
               {% else %}
                 <a class="readmsg" data-mid="{{message.mid}}">mark as read</a>
               {% endif %}
