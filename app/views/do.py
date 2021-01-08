@@ -33,7 +33,7 @@ from ..models import SubPost, SubPostComment, Sub, Message, User, UserIgnores, S
 from ..models import SubMod, SubBan, SubPostCommentHistory, InviteCode, Notification, SubPostContentHistory, SubPostTitleHistory
 from ..models import SubStylesheet, SubSubscriber, SubUploads, UserUploads, SiteMetadata, SubPostMetadata, SubPostReport
 from ..models import SubPostVote, SubPostCommentVote, SubFlair, SubPostPollOption, SubPostPollVote, SubPostCommentReport, SubRule
-from ..models import rconn, UserStatus, MessageType, MessageStatus, UserUnreadMessage
+from ..models import rconn, UserStatus, MessageType, MessageMailbox, UserUnreadMessage, UserMessageMailbox
 from ..tasks import create_thumbnail
 from ..notifications import notifications
 from peewee import fn, JOIN
@@ -1290,13 +1290,11 @@ def delete_pm(mid):
             return jsonify(status='error', error=_("Message does not exist"))
 
         UserUnreadMessage.delete().where((UserUnreadMessage.uid == current_user.uid) &
-                                         (UserUnreadMessage.mid == message.mid)).execute()
+                                         (UserUnreadMessage.mid == mid)).execute()
+        (UserMessageMailbox.update(mailbox=MessageMailbox.DELETED)
+         .where((UserMessageMailbox.uid == current_user.uid) &
+                (UserMessageMailbox.mid == mid))).execute()
 
-        message.receiver_status = MessageStatus.DELETED
-        if message.sender_status == MessageStatus.DELETED:
-            message.delete_instance()
-        else:
-            message.save()
         return jsonify(status='ok')
     except Message.DoesNotExist:
         return jsonify(status='error', error=_("Message does not exist"))
@@ -1349,8 +1347,10 @@ def save_pm(mid):
         if message.receivedby_id != current_user.uid:
             return jsonify(status='error', error=_("Message does not exist"))
 
-        message.receiver_status = MessageStatus.SAVED
-        message.save()
+        (UserMessageMailbox.update(mailbox=MessageMailbox.SAVED)
+         .where((UserMessageMailbox.uid == current_user.uid) &
+                (UserMessageMailbox.mid == mid))).execute()
+
         return jsonify(status='ok')
     except Message.DoesNotExist:
         return jsonify(status='error', error=_("Message does not exist"))

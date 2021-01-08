@@ -802,18 +802,15 @@ NON_IGNORABLE_MESSAGE_TYPES = [MessageType.MOD_TO_USER_AS_USER,
                                MessageType.MOD_TO_USER_AS_MOD]
 
 
-class MessageStatus(IntEnum):
-    """Statuses of private messages.
-    Value of the 'sender_status' and 'receiver_status' fields in Message."""
-    DEFAULT = 200  # Inbox for received messages and modmail and Sent for sent messages.
-    SAVED = 201  # Called "Archived" in Modmail.
-    TRASHED = 202  # User to user only.
-    DELETED = 203  # User to user only.
-
-
-# Messages to show in Inbox and Sent.
-ACTIVE_MESSAGE_STATUSES = [MessageStatus.DEFAULT, MessageStatus.SAVED]
-INACTIVE_MESSAGE_STATUSES = [MessageStatus.TRASHED, MessageStatus.DELETED]
+class MessageMailbox(IntEnum):
+    """Mailboxes for private messages.
+    Used in UserMessageMailbox and ModMessageMailbox. """
+    INBOX    = 200
+    SENT     = 201
+    SAVED    = 202
+    ARCHIVED = 203  # Modmail only.
+    TRASH    = 204
+    DELETED  = 205
 
 
 class Message(BaseModel):
@@ -837,9 +834,6 @@ class Message(BaseModel):
     # Relevant for modmail messages, otherwise NULL.
     sub = ForeignKeyField(db_column='sid', null=True, model=Sub, field='sid')
 
-    sender_status = IntegerField(default=MessageStatus.DEFAULT)
-    receiver_status = IntegerField(default=MessageStatus.DEFAULT)
-
     def __repr__(self):
         return f'<Message "{self.mid}"'
 
@@ -855,3 +849,28 @@ class UserUnreadMessage(BaseModel):
 
     class Meta:
         table_name = 'user_unread_message'
+
+class UserMessageMailbox(BaseModel):
+    uid = ForeignKeyField(db_column='uid', model=User, field='uid')
+    mid = ForeignKeyField(db_column='mid', model=Message, field='mid')
+    mailbox = IntegerField(default=MessageMailbox.INBOX)
+
+    def __repr__(self):
+        return f'<UserMessageMailbox "{self.uid}/{self.mid}"'
+
+    class Meta:
+        table_name = 'user_message_mailbox'
+
+class SubMessageMailbox(BaseModel):
+    sid = ForeignKeyField(db_column='sid', model=Sub, field='sid')
+    mid = ForeignKeyField(db_column='mid', model=Message, field='mid')
+    mailbox = IntegerField(default=MessageMailbox.INBOX)
+
+    uid = ForeignKeyField(db_column='uid', model=User, field='uid')
+    updated = DateTimeField(default=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f'<SubMessageMailbox "{self.sid}/{self.mid}"'
+
+    class Meta:
+        table_name = 'sub_message_mailbox'
