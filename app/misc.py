@@ -993,6 +993,8 @@ def get_messages_inbox(page):
             .join(Sub, JOIN.LEFT_OUTER, on=(Sub.sid == Message.sub))
             .join(UserUnreadMessage, JOIN.LEFT_OUTER, on=((UserUnreadMessage.uid == current_user.uid) &
                                                           (UserUnreadMessage.mid == Message.mid)))
+            .join(UserMessageMailbox, JOIN.LEFT_OUTER, on=((UserMessageMailbox.uid == current_user.uid) &
+                                                           (UserMessageMailbox.mid == Message.mid)))
             .where((Message.receivedby == current_user.uid) & (UserMessageMailbox.mailbox == MessageMailbox.INBOX) &
                   (Message.mtype << USER_INBOX_MESSAGE_TYPES) &
                   (UserIgnores.uid.is_null() | (Message.mtype << NON_IGNORABLE_MESSAGE_TYPES)))
