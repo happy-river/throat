@@ -13,6 +13,7 @@ u.sub('.readmsg', 'click', function(e){
       obj.innerHTML = _('read');
       obj.classList.remove('readmsg');
       obj.classList.add('read');
+      obj.classList.add('disabled');
       obj.parentNode.parentNode.parentNode.classList.remove('newmsg');
     }
   });
