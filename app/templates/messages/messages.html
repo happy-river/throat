@@ -41,7 +41,7 @@
               {% else %}
                 <a class="readmsg" data-mid="{{message.mid}}">mark as read</a>
               {% endif %}
-              {% if message.username %}
+              {% if message.username or message.sub %}
               <a href="#msg-form" data-mid="{{message.mid}}" data-replyto='{{message.username}}' data-replytitle='{{message.subject}}' class="replymsg">reply</a>
               {%endif%}
               <!--<a class="btn small">forward</a>-->
