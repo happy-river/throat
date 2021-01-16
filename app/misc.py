@@ -1015,35 +1015,47 @@ def get_messages_inbox(page):
 
 def get_messages_sent(page):
     """ Returns messages sent """
-    return (Message.select(Message.mid, Message.sentby, User.name.alias('username'), Sub.name.alias('sub'),
-                           Message.subject, Message.content, Message.posted, Message.mtype)
+    ParentMessage = Message.alias()
+    msgs = (Message.select(Message.mid, Message.sentby, User.name.alias('username'), Sub.name.alias('sub'),
+                           Message.subject, Message.content, Message.posted, Message.mtype,
+                           ParentMessage.subject.alias('thread'))
             .join(User, JOIN.LEFT_OUTER, on=(User.uid == Message.receivedby))
             .join(Sub, JOIN.LEFT_OUTER, on=(Sub.sid == Message.sub))
             .join(UserMessageMailbox, JOIN.LEFT_OUTER, on=((UserMessageMailbox.uid == current_user.uid) &
                                                           (UserMessageMailbox.mid == Message.mid)))
+            .join(ParentMessage, JOIN.LEFT_OUTER, on=(ParentMessage.mid == Message.reply_to))
             .where((Message.mtype << USER_SENT_MESSAGE_TYPES) & (Message.sentby == current_user.uid) &
                    (UserMessageMailbox.mailbox == MessageMailbox.SENT))
             .order_by(Message.mid.desc()).paginate(page, 20).dicts())
+    for msg in msgs:
+        if msg['thread'] is not None:
+            msg['subject'] = _('Re: ') + msg['thread']
+    return msgs
 
 
 def get_messages_saved(page):
     """ Returns saved messages """
+    ParentMessage = Message.alias()
     msgs = (Message.select(Message.mid, User.name.alias('username'), Sub.name.alias('sub'),
                            Message.receivedby, Message.subject,
                            Message.content, Message.posted, Message.mtype,
-                           UserUnreadMessage.id.alias('unread_id'))
+                           UserUnreadMessage.id.alias('unread_id'),
+                           ParentMessage.subject.alias('thread'))
             .join(User, on=(User.uid == Message.sentby))
             .join(Sub, JOIN.LEFT_OUTER, on=(Sub.sid == Message.sub))
             .join(UserUnreadMessage, JOIN.LEFT_OUTER, on=((UserUnreadMessage.uid == current_user.uid) &
                                                           (UserUnreadMessage.mid == Message.mid)))
             .join(UserMessageMailbox, JOIN.LEFT_OUTER, on=((UserMessageMailbox.uid == current_user.uid) &
                                                           (UserMessageMailbox.mid == Message.mid)))
+            .join(ParentMessage, JOIN.LEFT_OUTER, on=(ParentMessage.mid == Message.reply_to))
             .where((UserMessageMailbox.mailbox == MessageMailbox.SAVED) & (Message.receivedby == current_user.uid))
             .order_by(Message.mid.desc()).paginate(page, 20).dicts())
     for msg in msgs:
         if msg['mtype'] == MessageType.MOD_TO_USER_AS_MOD:
             msg['username'] = None
             msg['sentby'] = None
+        if msg['thread'] is not None:
+            msg['subject'] = _('Re: ') + msg['thread']
         msg['read'] = (msg['unread_id'] is None)
     return msgs
 
