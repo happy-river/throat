@@ -69,15 +69,23 @@ def migrate(migrator, database, fake=False, **kwargs):
 
     @migrator.create_model
     class SubMessageMailbox(pw.Model):
-        sid = pw.ForeignKeyField(db_column='sid', model=Sub, field='sid')
         mid = pw.ForeignKeyField(db_column='mid', model=Message, field='mid')
         mailbox = pw.IntegerField(default=MessageMailbox.INBOX)
-
-        uid = pw.ForeignKeyField(db_column='uid', model=User, field='uid')
-        updated = pw.DateTimeField(default=dt.datetime.utcnow)
+        highlighted = pw.BooleanField(default=False)
 
         class Meta:
             table_name = 'sub_message_mailbox'
+
+    @migrator.create_model
+    class SubMessageLog(pw.Model):
+        mid = pw.ForeignKeyField(db_column='mid', model=Message, field='mid')
+        action = pw.IntegerField(null=True)
+        desc = pw.CharField(null=True)
+        uid = pw.ForeignKeyField(db_column='uid', model=User, field='uid')
+        time = pw.DateTimeField(default=dt.datetime.utcnow)
+
+        class Meta:
+            table_name = 'sub_message_log'
 
     if not fake:
         UserUnreadMessage.create_table(True)
@@ -154,3 +162,4 @@ def rollback(migrator, database, fake=False, **kwargs):
     migrator.remove_model('user_unread_message')
     migrator.remove_model('user_message_mailbox')
     migrator.remove_model('sub_message_mailbox')
+    migrator.remove_model('sub_message_log')

@@ -840,6 +840,7 @@ class Message(BaseModel):
     class Meta:
         table_name = 'message'
 
+
 class UserUnreadMessage(BaseModel):
     uid = ForeignKeyField(db_column='uid', model=User, field='uid')
     mid = ForeignKeyField(db_column='mid', model=Message, field='mid')
@@ -849,6 +850,7 @@ class UserUnreadMessage(BaseModel):
 
     class Meta:
         table_name = 'user_unread_message'
+
 
 class UserMessageMailbox(BaseModel):
     uid = ForeignKeyField(db_column='uid', model=User, field='uid')
@@ -861,16 +863,28 @@ class UserMessageMailbox(BaseModel):
     class Meta:
         table_name = 'user_message_mailbox'
 
+
 class SubMessageMailbox(BaseModel):
-    sid = ForeignKeyField(db_column='sid', model=Sub, field='sid')
     mid = ForeignKeyField(db_column='mid', model=Message, field='mid')
     mailbox = IntegerField(default=MessageMailbox.INBOX)
-
-    uid = ForeignKeyField(db_column='uid', model=User, field='uid')
-    updated = DateTimeField(default=datetime.datetime.utcnow)
+    highlighted = BooleanField(default=False)
 
     def __repr__(self):
-        return f'<SubMessageMailbox "{self.sid}/{self.mid}"'
+        return f'<SubMessageMailbox "{self.mid}/{self.mailbox}"'
 
     class Meta:
         table_name = 'sub_message_mailbox'
+
+
+class SubMessageLog(BaseModel):
+    mid = ForeignKeyField(db_column='mid', model=Message, field='mid')
+    action = IntegerField(null=True)
+    desc = CharField(null=True)
+    uid = ForeignKeyField(db_column='uid', model=User, field='uid')
+    time = DateTimeField(default=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f'<SubMessageLog {self.mid}/{self.action}>'
+
+    class Meta:
+        table_name = 'sub_message_log'

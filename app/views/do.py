@@ -22,7 +22,7 @@ from ..forms import LogOutForm, CreateSubFlair, DummyForm, CreateSubRule
 from ..forms import EditSubForm, EditUserForm, EditSubCSSForm
 from ..forms import EditModForm, BanUserSubForm, DeleteAccountForm, EditAccountForm
 from ..forms import EditSubTextPostForm, AssignUserBadgeForm
-from ..forms import PostComment, CreateUserMessageForm, DeletePost, UndeletePost
+from ..forms import PostComment, CreateUserMessageForm, CreateUserMessageReplyForm, DeletePost, UndeletePost
 from ..forms import SearchForm, EditMod2Form
 from ..forms import DeleteSubFlair, BanDomainForm, DeleteSubRule, CreateReportNote
 from ..forms import UseInviteCodeForm, SecurityQuestionForm, DistinguishForm
@@ -919,10 +919,28 @@ def create_sendmsg():
                             subject=form.subject.data,
                             content=form.content.data,
                             mtype=MessageType.USER_TO_USER)
-        socketio.emit('notification',
-                      {'count': misc.get_notification_count(user.uid)},
-                      namespace='/snt',
-                      room='user' + user.uid)
+        return json.dumps({'status': 'ok',
+                           'sentby': current_user.get_id()})
+    return json.dumps({'status': 'error', 'error': get_errors(form)})
+
+
+@do.route("/do/send_reply", methods=['POST'])
+@ratelimit(POSTING_LIMIT)
+@login_required
+def create_send_reply():
+    """ User PM message reply creation endpoint """
+    form = CreateUserMessageReplyForm()
+    if form.validate():
+        parent_msg = None
+        try:
+            parent_msg = Message.get(Message.mid == int(form.reply_mid.data))
+        except (ValueError, Message.DoesNotExist):
+            pass
+
+        if parent_msg is None or parent_msg.receivedby.get_id() != current_user.uid:
+            return json.dumps({'status': 'error', 'error': [_('Invalid message')]})
+
+        misc.create_message_reply(parent_msg, content=form.content.data)
         return json.dumps({'status': 'ok',
                            'sentby': current_user.get_id()})
     return json.dumps({'status': 'error', 'error': get_errors(form)})

@@ -21,7 +21,11 @@
             <p class="title">{{message.subject}}</p>
             <p class="container">{{markdown(message.content)|safe}}</p>
             <p class="author">&#10148;
+              {% if message.username %}
               <a href="{{url_for('user.view', user=message.username)}}" class="btn small">/u/{{message.username}}</a>
+              {% else %}
+              <a href="{{url_for('sub.view_sub', sub=message.sub)}}" class="btn small">/{{config.site.sub_prefix}}/{{message.sub}}</a>
+              {% endif %}
               <time-ago datetime="{{message.posted.isoformat()}}Z"></time-ago>
             </p>
           </div>

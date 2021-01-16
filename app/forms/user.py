@@ -142,6 +142,14 @@ class CreateUserMessageForm(FlaskForm):
                                         Length(min=1, max=16384)])
 
 
+class CreateUserMessageReplyForm(FlaskForm):
+    """ CreateUserMessage form. """
+    reply_mid = StringField('reply_mid', [Length(min=1, max=32), Regexp(r'[0-9]+')])
+    content = TextAreaField(_l('message'),
+                            validators=[DataRequired(),
+                                        Length(min=1, max=16384)])
+
+
 class PasswordRecoveryForm(FlaskForm):
     """ the 'forgot your password?' form """
     email = EmailField(_l('Email Address'),

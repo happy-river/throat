@@ -2382,6 +2382,11 @@ a.close-report {
   pointer-events: none;
 }
 
+.read.disabled {
+  color: #5d5454;
+  pointer-events: none;
+}
+
 .mod.report.details {
   margin: 20px auto;
   width: 100%;

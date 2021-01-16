@@ -72,11 +72,9 @@ u.sub('.pmessage .replymsg', 'click', function(e){
   var replyto = this.getAttribute('data-replyto')
   var title = this.getAttribute('data-replytitle')
   var mid = this.getAttribute('data-mid')
-  document.querySelector('#msg-form #to').setAttribute('value', replyto);
-  if(document.querySelector('#msg-form #lto')){
-    document.querySelector('#msg-form #lto').style.display = 'none';
+  if(document.querySelector('#msg-form #reply_mid')){
+      document.querySelector('#msg-form #reply_mid').setAttribute('value', mid);
   }
-  document.querySelector('#msg-form #subject').setAttribute('value', 'Re:' + title);
   var modal = document.getElementById('msgpop');
   document.querySelector('#replyto'+mid).appendChild(document.getElementById('msgpop'));
   modal.style.display = "block";

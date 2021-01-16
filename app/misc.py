@@ -35,6 +35,7 @@ from .badges import badges
 
 from .models import Sub, SubPost, User, SiteMetadata, SubSubscriber, Message, UserMetadata, SubRule
 from .models import MessageType, MessageMailbox, UserUnreadMessage, UserMessageMailbox
+from .models import SubMessageMailbox
 from .models import USER_INBOX_MESSAGE_TYPES, USER_SENT_MESSAGE_TYPES, NON_IGNORABLE_MESSAGE_TYPES
 from .models import SubPostVote, SubPostComment, SubPostCommentVote, SiteLog, SubLog, db
 from .models import SubPostReport, SubPostCommentReport, PostReportLog, CommentReportLog, Notification
@@ -984,9 +985,11 @@ def get_errors(form, first=False):
 
 def get_messages_inbox(page):
     """ Returns current user's messages inbox as dictionary. """
+    ParentMessage = Message.alias()
     msgs = (Message.select(Message.mid, User.name.alias('username'), Sub.name.alias('sub'), Message.sentby,
                            Message.receivedby, Message.subject, Message.content, Message.posted,
-                           Message.mtype, UserUnreadMessage.id.alias('unread_id'))
+                           Message.mtype, ParentMessage.subject.alias('thread'),
+                           UserUnreadMessage.id.alias('unread_id'))
             .join(UserIgnores, JOIN.LEFT_OUTER,
                   on=((UserIgnores.uid == current_user.uid) & (UserIgnores.target == Message.sentby)))
             .join(User, JOIN.LEFT_OUTER, on=(User.uid == Message.sentby))
@@ -995,6 +998,7 @@ def get_messages_inbox(page):
                                                           (UserUnreadMessage.mid == Message.mid)))
             .join(UserMessageMailbox, JOIN.LEFT_OUTER, on=((UserMessageMailbox.uid == current_user.uid) &
                                                            (UserMessageMailbox.mid == Message.mid)))
+            .join(ParentMessage, JOIN.LEFT_OUTER, on=(ParentMessage.mid == Message.reply_to))
             .where((Message.receivedby == current_user.uid) & (UserMessageMailbox.mailbox == MessageMailbox.INBOX) &
                   (Message.mtype << USER_INBOX_MESSAGE_TYPES) &
                   (UserIgnores.uid.is_null() | (Message.mtype << NON_IGNORABLE_MESSAGE_TYPES)))
@@ -1003,6 +1007,8 @@ def get_messages_inbox(page):
         if msg['mtype'] == MessageType.MOD_TO_USER_AS_MOD:
             msg['username'] = None
             msg['sentby'] = None
+        if msg['thread'] is not None:
+            msg['subject'] = _('Re: ') + msg['thread']
         msg['read'] = (msg['unread_id'] is None)
     return msgs
 
@@ -1244,6 +1250,55 @@ def create_message(mfrom, to, subject, content, mtype):
     UserUnreadMessage.create(uid=to, mid=msg.mid)
     UserMessageMailbox.create(uid=to, mid=msg.mid, mailbox=MessageMailbox.INBOX)
     UserMessageMailbox.create(uid=mfrom, mid=msg.mid, mailbox=MessageMailbox.SENT)
+    socketio.emit('notification',
+                  {'count': misc.get_notification_count(to)},
+                  namespace='/snt',
+                  room='user' + to)
+    return msg
+
+
+def create_message_reply(parent_msg, content):
+    """ Creates a reply to a message. """
+    posted = datetime.utcnow()
+    if parent_msg.sub is not None:
+        send_to = None
+        mtype = MessageType.USER_TO_MODS
+        sid = parent_msg.sub.get_id()
+    else:
+        send_to = parent_msg.sentby
+        mtype = MessageType.USER_TO_USER
+        sid = None
+
+    if parent_msg.reply_to is not None:
+        reply_mid = parent_msg.reply_to.get_id()
+    else:
+        reply_mid = parent_msg.mid
+
+    msg = Message.create(content=content,
+                         mtype=mtype,
+                         posted=posted,
+                         receivedby=send_to,
+                         sentby=parent_msg.receivedby,
+                         reply_to=reply_mid,
+                         subject='',
+                         sub=sid)
+
+    Message.update(replies=Message.replies + 1).where(Message.mid == reply_mid).execute()
+    UserMessageMailbox.create(uid=msg.sentby, mid=msg.mid, mailbox=MessageMailbox.SENT)
+
+    if parent_msg.sub is not None:
+        mods = getSubMods(sid)['all']
+        for mod_uid in mods:
+            UserUnreadMessage.create(uid=mod_uid, mid=msg.mid)
+        SubMessageMailbox.create(mid=msg.mid, mailbox=MessageMailbox.INBOX)
+        notify_mods(sid)
+    else:
+        UserMessageMailbox.create(uid=send_to, mid=msg.mid, mailbox=MessageMailbox.INBOX)
+        UserUnreadMessage.create(uid=send_to, mid=msg.mid)
+        socketio.emit('notification',
+                      {'count': get_notification_count(send_to.get_id())},
+                      namespace='/snt',
+                      room='user' + send_to.get_id())
     return msg
 
 
